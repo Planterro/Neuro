@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Slime Mold</title>
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+
+let width = window.innerWidth;
+let height = window.innerHeight;
+canvas.width = width;
+canvas.height = height;
+
+
+
+
+
+
+
+
+// === ВОТ ТУТ ТЫ МОЖЕШЬ ПОКРУТИТЬ ОСНОВЫНЫЕ НАСТРОЙКИ!!!!!!!!!! ===
+const NUM_MOLDS = 8000 * 3; // Колличество разноцветных точек на экране
+const ROT_ANGLE = Math.PI / 4; // Угол поворта
+const SENSOR_ANGLE = Math.PI / 4; // Угол сенсора
+const SENSOR_DIST = 10; //Растояние сенсора
+
+
+
+
+
+
+
+
+
+
+// === Инициализация поверхности ===
+let imageData = ctx.createImageData(width, height);
+let data = imageData.data;
+
+// === Вспомогательные функции ===
+function luminanceAt(x, y) {
+  const i = ((Math.floor(y) % height) * width + (Math.floor(x) % width)) * 4;
+  return (data[i] + data[i + 1] + data[i + 2]) / (3 * 255);
+}
+
+function wrap(val, max) {
+  return (val + max) % max;
+}
+
+// === Класс Молда ===
+class Mold {
+  constructor() {
+    this.x = width / 2 + Math.random() * 40 - 20;
+    this.y = height / 2 + Math.random() * 40 - 20;
+    this.heading = Math.random() * Math.PI * 2;
+
+    const hue = this.heading / (2 * Math.PI);
+    const r = 127 + 127 * Math.sin(2 * Math.PI * hue);
+    const g = 127 + 127 * Math.sin(2 * Math.PI * hue + 2);
+    const b = 127 + 127 * Math.sin(2 * Math.PI * hue + 4);
+    this.color = [r, g, b];
+  }
+
+  getSensor(angle) {
+    const x = wrap(this.x + SENSOR_DIST * Math.cos(angle), width);
+    const y = wrap(this.y + SENSOR_DIST * Math.sin(angle), height);
+    return [x, y];
+  }
+
+  update() {
+    this.x = wrap(this.x + Math.cos(this.heading), width);
+    this.y = wrap(this.y + Math.sin(this.heading), height);
+
+    const [fx, fy] = this.getSensor(this.heading);
+    const [lx, ly] = this.getSensor(this.heading - SENSOR_ANGLE);
+    const [rx, ry] = this.getSensor(this.heading + SENSOR_ANGLE);
+
+    const f = luminanceAt(fx, fy);
+    const l = luminanceAt(lx, ly);
+    const r = luminanceAt(rx, ry);
+
+    if (f < l && f < r) {
+      this.heading += Math.random() < 0.5 ? ROT_ANGLE : -ROT_ANGLE;
+    } else if (l > r) {
+      this.heading -= ROT_ANGLE;
+    } else if (r > l) {
+      this.heading += ROT_ANGLE;
+    }
+  }
+
+  draw() {
+    const x = Math.floor(this.x);
+    const y = Math.floor(this.y);
+    const i = (y * width + x) * 4;
+    data[i] = this.color[0];
+    data[i + 1] = this.color[1];
+    data[i + 2] = this.color[2];
+    data[i + 3] = 255;
+  }
+}
+
+// === Инициализация и запуск ===
+let molds = Array.from({length: NUM_MOLDS}, () => new Mold());
+
+function fade() {
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = Math.max(0, data[i] - 2);
+    data[i + 1] = Math.max(0, data[i + 1] - 2);
+    data[i + 2] = Math.max(0, data[i + 2] - 2);
+    // Альфа 255
+  }
+}
+
+function loop() {
+  fade();
+  for (let mold of molds) {
+    mold.update();
+    mold.draw();
+  }
+  ctx.putImageData(imageData, 0, 0);
+  requestAnimationFrame(loop);
+}
+
+loop();
+
+window.addEventListener("resize", () => {
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.width = width;
+  canvas.height = height;
+  imageData = ctx.createImageData(width, height);
+  data = imageData.data;
+  molds = Array.from({length: NUM_MOLDS}, () => new Mold());
+});
+</script>
+</body>
+</html>
